@@ -9,19 +9,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const server = new McpServer({
-    name: "sf-mcp-server-extended",
+    name: "sf-mcp-server",
     version: "1.1.0",
     capabilities: {
         tools: {},
     },
 });
 
-// --- Helper function to execute shell commands and return parsed JSON ---
+/**
+ * @param command The Salesforce CLI command to execute.
+ * @description Executes a Salesforce CLI command and returns the result.
+ * @returns a Promise that resolves with the parsed JSON result or an error message.
+ * @throws {Error} If the command execution fails or if parsing the output fails.
+ */
 const executeSfCommand = (command: string): Promise<any> => {
     return new Promise((resolve, reject) => {
         exec(command, (error, stdout, stderr) => {
             if (error) {
-                // Try to parse stderr for a more specific Salesforce error message
                 try {
                     const sfError = JSON.parse(stderr);
                     return reject(new Error(sfError.message || stderr));
@@ -29,7 +33,6 @@ const executeSfCommand = (command: string): Promise<any> => {
                     return reject(error);
                 }
             }
-            // Some commands might output progress to stderr, so we only reject if there's no stdout.
             if (stderr && !stdout) {
                  try {
                     const sfError = JSON.parse(stderr);
@@ -42,7 +45,6 @@ const executeSfCommand = (command: string): Promise<any> => {
                 const result = JSON.parse(stdout);
                 resolve(result);
             } catch (parseError) {
-                // If parsing fails, it might be a simple string message.
                 resolve({ message: stdout.trim() });
             }
         });
@@ -50,14 +52,17 @@ const executeSfCommand = (command: string): Promise<any> => {
 };
 
 
-// --- EXISTING TOOLS (Read) ---
 
+/**     
+ * @description Lists all Salesforce orgs the CLI is currently authenticated with.
+ * @returns a Promise that resolves with an object containing the org list.
+ */
 server.tool(
     "list_connected_salesforce_orgs",
     "Lists all Salesforce orgs the CLI is currently authenticated with.",
     {},
     async () => {
-        const orgList = await executeSfCommand("sf org list --json");
+        const orgList = await executeSfCommand("sf org list --json");   
         return {
             content: [{
                 type: "text",
@@ -67,6 +72,12 @@ server.tool(
     }
 );
 
+/** 
+ * @description Retrieves the details of a specific Salesforce org.
+ * @param targetOrg The alias or username of the Salesforce org to retrieve details for.
+ * @returns a Promise that resolves with the org details.
+ * @throws {Error} If the org does not exist or if an error occurs during retrieval.
+ */
 server.tool(
     "query_records",
     "Execute a SOQL query in Salesforce Org (Read operation).", {
@@ -100,8 +111,14 @@ server.tool(
 );
 
 
-// --- NEW CRUD TOOLS (Create, Update, Delete) ---
-
+/**
+ * @description Creates a new record in Salesforce for a given SObject.
+ * @param targetOrg The alias or username of the Salesforce org to create the record in.
+ * @param sObject The API name of the SObject to create a record for (e
+ * @param values A string of key-value pairs for the record's fields (e.g., "Name='New Account' Phone='(555) 555-1234'").
+ * @returns a Promise that resolves with the created record's details.
+ * @throws {Error} If the record creation fails or if parsing the output fails.
+ */
 server.tool(
     "create_record",
     "Create a new record for a given SObject in Salesforce (Create operation).", {
@@ -124,6 +141,17 @@ server.tool(
     }
 );
 
+
+
+/** 
+ * @description Updates an existing record in Salesforce for a given SObject.
+ * @param targetOrg The alias or username of the Salesforce org to update the record in.
+ * @param sObject The API name of the SObject to update a record for (e.g., Account, Contact).
+ * @param recordId The 15 or 18-character ID of the record to update.
+ * @param values A string of key-value pairs for the fields to update (e.g., "Name='Updated Name' Description='New details.'").
+ * @returns a Promise that resolves with the updated record's details.
+ * @throws {Error} If the record update fails or if parsing the output fails.
+ */
 server.tool(
     "update_record",
     "Update an existing record in Salesforce (Update operation).", {
@@ -147,6 +175,15 @@ server.tool(
     }
 );
 
+
+/**
+ * @description Deletes a record from Salesforce for a given SObject.
+ * @param targetOrg The alias or username of the Salesforce org to delete the record from.
+ * @param sObject The API name of the SObject to delete a record for (e.g., Account, Contact).
+ * @param recordId The 15 or 18-character ID of the record to delete.
+ * @returns a Promise that resolves with the result of the deletion operation.
+ * @throws {Error} If the record deletion fails or if parsing the output fails.
+ */
 server.tool(
     "delete_record",
     "Delete a record from Salesforce (Delete operation).", {
@@ -170,8 +207,15 @@ server.tool(
 );
 
 
-// --- NEW APEX DEVELOPMENT TOOLS ---
 
+/** * @description Creates and deploys a new Apex class to a Salesforce org.
+ * @param targetOrg The alias or username of the Salesforce org to deploy the class to.
+ * @param className The name of the Apex class to create (e.g., 'MyNewController').
+ * @param apiVersion The API version for the class metadata (default is '59.0').
+ * @param classContent The full string content of the Apex class code.
+ * @returns a Promise that resolves with the deployment result.
+ * @throws {Error} If the deployment fails or if parsing the output fails.
+ */
 server.tool(
     "create_apex_class",
     "Creates and deploys a new Apex class to a Salesforce org.", {
@@ -193,10 +237,10 @@ server.tool(
         const metaPath = path.join(classesDir, `${className}.cls-meta.xml`);
 
         const metaContent = `<?xml version="1.0" encoding="UTF-8"?>
-<ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>${apiVersion}</apiVersion>
-    <status>Active</status>
-</ApexClass>`;
+                                <ApexClass xmlns="http://soap.sforce.com/2006/04/metadata">
+                                    <apiVersion>${apiVersion}</apiVersion>
+                                    <status>Active</status>
+                                </ApexClass>`;
 
         await fs.writeFile(classPath, classContent);
         await fs.writeFile(metaPath, metaContent);
@@ -212,12 +256,17 @@ server.tool(
                 }],
             };
         } finally {
-            // Cleanup the temporary directory and files
             await fs.rm(tempDir, { recursive: true, force: true });
         }
     }
 );
 
+/** * @description Executes a block of anonymous Apex code in a Salesforce org.
+ * @param targetOrg The alias or username of the Salesforce org to execute the code in.
+ * @param apexCode The Apex code to execute. Do not include 'execute-anonymous' block wrappers.
+ * @returns a Promise that resolves with the execution result.
+ * @throws {Error} If the execution fails or if parsing the output fails.
+ */
 server.tool(
     "execute_anonymous_apex",
     "Executes a block of anonymous Apex code in a Salesforce org.", {
@@ -242,14 +291,12 @@ server.tool(
                 }],
             };
         } finally {
-            // Cleanup the temporary file
             await fs.unlink(tempFilePath);
         }
     }
 );
 
 
-// --- Main Server Execution ---
 
 async function main() {
     const transport = new StdioServerTransport();
