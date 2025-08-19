@@ -17,6 +17,7 @@ export const executeSfCommand = (command: string): Promise<any> => {
           return reject(error);
         }
       }
+      
       if (stderr && !stdout) {
         try {
           const sfError = JSON.parse(stderr);
