@@ -17,7 +17,7 @@ const server = new McpServer({
 
 registerApexTools(server);
 registerDataTools(server);
-registerLwcTools(server);
+//registerLwcTools(server);
 registerMetadataTools(server);
 registerOrgTools(server);
 registerVscodeTools(server);
