@@ -6,6 +6,7 @@ import { registerLwcTools } from "./lib/lwc.js";
 import { registerMetadataTools } from "./lib/metadata.js";
 import { registerOrgTools } from "./lib/org.js";
 import { registerVscodeTools } from "./lib/vscode.js";
+import { registerManifestTools } from "./lib/manifest.js"; 
 
 const server = new McpServer({
   name: "sf-mcp-server",
@@ -17,10 +18,10 @@ const server = new McpServer({
 
 registerApexTools(server);
 registerDataTools(server);
-//registerLwcTools(server);
 registerMetadataTools(server);
 registerOrgTools(server);
 registerVscodeTools(server);
+registerManifestTools(server); 
 
 async function main() {
   const transport = new StdioServerTransport();
